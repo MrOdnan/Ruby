@@ -1,0 +1,45 @@
+#!/usr/bin/ruby
+
+require 'mysql2'
+require 'yaml'
+require 'pp'
+#require 'filesize'
+require 'json'
+#require 'colorize'
+require 'open-uri'
+
+#def collect
+        loop do
+                migration = Mysql2::Client.new(
+                        :host => "192.168.1.200",
+                        :port => "3306",
+                        :database => "crypto",
+                        :username => "odnan",
+                        :password => "password")
+
+        #        text_blurb = open("https://api.coinmarketcap.com/v1/ticker/golem-network-tokens/?convert=USD")
+                text_blurb = open("https://api.binance.com/api/v1/ticker/allPrices")
+        #        text_blurb = open("https://www.cryptocompare.com/api/data/coinlist/")
+                coin_array = JSON.parse(text_blurb.read)
+        #        pp coin_array
+
+
+                coin_array.each_with_index do |coin,index|
+                        puts index
+                        rank = coin['rank']
+                        price_btc = coin['price_btc']
+                        market_cap_usd = coin['market_cap_usd']
+                        available_supply = coin['available_supply']
+                        total_supply = coin['total_supply']
+                        percent_change_1h = coin['percent_change_1h']
+                        percent_change_24h = coin['percent_change_24h']
+                        percent_change_7d = coin['percent_change_7d']
+                        coin_id = coin['id']
+                        symbol = coin['symbol']
+                        name = coin['name']
+                        price = coin['price_usd']
+                        update_blurb = migration.prepare('insert into market set name = ?, price = ?, rank = ?, symbol = ?, price_btc = ?, market_cap_usd = ?, available_supply = ?, total_supply = ?, percent_change_1h = ?, percent_change_24h = ?, percent_change_7d = ?, coin_id = ?, time = ?')
+                        update_blurb.execute(name, price, rank, symbol, price_btc, market_cap_usd, available_supply, total_supply, percent_change_1h, percent_change_24h, percent_change_7d, coin_id, Time.now)
+                end
+                sleep(10)
+        end
