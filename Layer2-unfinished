@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+
+require 'pp'
+
+#This script sets up a layer 2 connection for a DR.
+#For a single static NIC. Assuming eth0 is the only active NIC.
+
+#Bar/loading methods.
+def loader
+  10.times {
+    print "/" 
+    sleep(0.1)
+    print "\b"
+    print "-" 
+    sleep(0.1)
+    print "\b"
+    print "\\"
+    sleep(0.1)
+    print "\b"
+    print "|" 
+    sleep(0.1)
+    print "\b"
+}
+end
+
+def spinner
+spinner = Enumerator.new do |e|
+  loop do
+    e.yield '|'
+    e.yield '/'
+    e.yield '-'
+    e.yield '\\'
+  end
+end
+end
+
+def progress
+1.upto(100) do |i|
+  progress = "=" * (i/5) unless i < 5
+  printf("\rUpdating: [%-20s] %d%% %s", progress, i, spinner.next)
+  sleep(0.1)
+end
+end
+
+#Global variables.
+$clear = `clear`
+
+puts $clear
+sleep 1
+puts <<<PARAGRAPH
+This script will establish a layer 2 connection to a GNU/Linux endpoint.
+Proceed updating device binaries.
+PARAGRAPH
+sleep 1
+#Update the device.
+update = system "apt-get update; apt-get install bridge-utils screen"
+progress
+puts "\n"
+puts "Updating packages... \n #{update}"
+
+#Confirming if br0 is up and present. If it is, script will abort.
+#Best to do this process manually if br0 is up.
+confirm = system("ifconfig br0")
+puts confirm
+  if confirm == true
+    puts "Bridge already exists! Be careful..."
+    puts "If br0 is already up, please procced manually with this configuration"
+    sleep 1
+    abort
+  else
+    puts "Ok good to go. Proceeding with configuration"
+end
+
+#Creating bridge and copy of interfaces config.
+bro = `brctl addbr br0`
+broVERIFY = `brctl show`
+interfaceCP = `cp /etc/network/interfaces /etc/network/interfaces.pre-vpn`
+print interfaceCP
+print "Creating bridge:\n #{bro} \n #{broVERIFY}"
+spinner
+sleep 1
+
+#Appending network interfaces file with br0.
+File.open("/etc/network/interfaces", "a") do |output|
+  output.puts "\nauto br0 \niface br0 inet dhcp \nbridge_ports eth0 \nbridge_maxwait 0 \nbridge_fd 0 \nbridge_stp off"
+end
+
+#Move IP from eth0 to br0.
+ip_blob = `brctl addbr br0; killall dhclient; ifconfig eth0 down; ifconfig br0 down; brctl addif br0 eth0; ifconfig eth0 0.0.0.0; ifconfig eth0 up; ifconfig br0 up; dhclient br0`
+puts ip_blob
