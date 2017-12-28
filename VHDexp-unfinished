@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+
+require 'pp'
+
+puts `clear`
+$zfs_short = `zfs list`.split("\n")
+puts "Datasets: "
+$zfs_short.each_with_index do |datasetline, index|
+	puts "#{index}: #{datasetline}"
+end
+
+print "Please input the number: "
+dataset = gets.chomp.to_i
+agent = $zfs_short[dataset].split("\s")[0]
+
+extended = `zfs list -t all -r -o name,written,refer,available,creation,sync:devsnap #{agent}`.split("\n")
+extended.each_with_index do |agents, list|
+	puts "#{list}: #{agents}"
+end
+
+print "Please input epoch: "
+snapshot = gets.chomp.to_i
+snap_epoch = extended[snapshot].split("\s")[0]
+puts "#{snap_epoch}"
+sub = snap_epoch.gsub(/@/, "-").gsub("home/agents/", "")
+
+$zfs_clone = `zfs clone #{snap_epoch} #{sub}-rubyEXPORTmanual-vhd`
+
+$zfs_hir = `snapctl agent:hir /#{sub}-rubyEXPORTmanual-vhd`
+
+$zfs_vhd = `snapctl convertVHD /#{sub}-rubyEXPORTmanual-vhd`
+
+$zfs_volume = `ls /#{sub}-rubyEXPORTmanual-vhd | grep vhd | grep -v boot`
+
+puts $zfs_volume
+
+if $zfs_volume.nil?
+        puts "No VHD found!"
+        exit
+end
+
+=begin
+print "Moving GUID to child directory: "
+puts "\n"
+puts `mkdir /#{sub}-rubyEXPORTmanual-vhd/share`
+puts `chmod 777 /#{sub}-rubyEXPORTmanual-vhd`
+puts `chmod 777 /#{sub}-rubyEXPORTmanual-vhd/share`
+puts `mv *.vhd /#{sub}-rubyEXPORTmanual-vhd/share`
+=end
+
+
+$zfs_volume_array = $zfs_volume.split("\n")
+pp $zfs_volume_array
+
+$zfs_volume_array.each do |element|
+	output = `cat /#{sub}-rubyEXPORTmanual-vhd/#{element} | awk 'NR==8 {print $4}' | sed  's/"//g'`
+	puts output
+
+end
+
+conv_blob = `mv #{output} C.vhd` #.gsub(/"/, "")
+puts conv_blob
