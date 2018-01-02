@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+
+#This script runs through the automatic process of setting up a cronjob for an active VM.
+#If ruby is not installed on the target server, run "sudo apt-get install ruby-full"
+#Once installed, should be able to call the script with either ruby or making the script executable.
+
+require 'pp'
+
+$clear = `clear`
+
+puts $clear
+
+$list = `zfs list`
+
+def agent_grab
+  puts "Please enter the active dataset you would like to setup a cronjob for."
+  puts "Example: homePool/192.168.1.2-active"
+  sleep 1
+  puts $list
+  puts "\n"
+  print ":> "
+  $agent = gets.chomp.gsub(" ", "")
+end
+
+def insert
+  File.open("/datto/snapshot.sh", "w"){|file| file.puts "#!/bin/bash\n
+zfs snapshot #{$agent}@$(date +%s)
+"}
+end
+
+def execute
+  sys1 = `chmod +x /datto/snapshot.sh`
+  puts sys1
+end
+
+def tab_entry
+  open('/etc/crontab', 'a') do |x|
+    x.puts "0 * * * * root bash '/datto/snapshot.sh'"
+  end
+end
+
+def restart_cron
+  sys2 = `service cron restart`
+  puts sys2
+end
+
+def capture
+  sys3 = `/datto/snapshot.sh`
+  puts sys3
+end
+
+
+agent_grab
+insert
+execute
+tab_entry
+restart_cron
+capture
+
+sleep 1
+
+print "Cronjob set for #{$agent}"
+print "#{Time.now}"
+puts $clear
+
